@@ -1,0 +1,11 @@
+{
+  "name": "ai-lead-qualification-and-routing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Website leads scored by Gemini on Vertex AI and routed to Salesforce, Slack and email from Google Sheets.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check:secrets": "bash scripts/check-secrets.sh"
+  },
+  "engines": { "node": ">=20" }
+}

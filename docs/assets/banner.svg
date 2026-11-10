@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="t d">
+  <title id="t">AI Lead Qualification &amp; Routing</title>
+  <desc id="d">Website form leads are scored by Gemini on Vertex AI and routed to Salesforce, Slack and email from Google Sheets.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0A0F1F"/>
+      <stop offset="1" stop-color="#1B1F4B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.74" cy="0.5" r="0.45">
+      <stop offset="0" stop-color="#6E5BF0" stop-opacity="0.40"/>
+      <stop offset="1" stop-color="#6E5BF0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="v" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#A99BFF"/>
+      <stop offset="1" stop-color="#6E5BF0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="360" rx="28" fill="url(#bg)"/>
+  <rect width="1280" height="360" rx="28" fill="url(#glow)"/>
+
+  <g font-family="Lexend, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="72" y="104" fill="#B9B2E8" font-size="21" font-weight="500">Webflow → Google Sheets → Gemini → Salesforce · Slack · Email</text>
+    <text x="70" y="168" fill="#FFFFFF" font-size="56" font-weight="700">AI Lead Qualification</text>
+    <text x="70" y="230" fill="#A99BFF" font-size="56" font-weight="700">&amp; Routing</text>
+
+    <g font-size="15" font-weight="500">
+      <rect x="72" y="262" width="122" height="32" rx="16" fill="#E24B4A" fill-opacity="0.22" stroke="#E24B4A"/>
+      <text x="133" y="283" fill="#FFD9D9" text-anchor="middle">Sales · High</text>
+      <rect x="204" y="262" width="150" height="32" rx="16" fill="#BA7517" fill-opacity="0.25" stroke="#E0A040"/>
+      <text x="279" y="283" fill="#FBE6C4" text-anchor="middle">Inquiry · Medium</text>
+      <rect x="364" y="262" width="130" height="32" rx="16" fill="#6E5BF0" fill-opacity="0.25" stroke="#A99BFF"/>
+      <text x="429" y="283" fill="#E4DBFF" text-anchor="middle">Partner · Low</text>
+      <rect x="504" y="262" width="136" height="32" rx="16" fill="#8A93A0" fill-opacity="0.18" stroke="#8A93A0"/>
+      <text x="572" y="283" fill="#D7DCE2" text-anchor="middle">Spam · Ignore</text>
+    </g>
+  </g>
+
+  <!-- Lead card -->
+  <g transform="translate(724 112)">
+    <rect width="150" height="104" rx="12" fill="#141A3A" stroke="#A99BFF" stroke-width="2"/>
+    <circle cx="26" cy="28" r="12" fill="#E6F1FB"/>
+    <rect x="46" y="20" width="84" height="9" rx="4" fill="#D7DCE2"/>
+    <rect x="46" y="34" width="60" height="7" rx="3" fill="#8A93A0"/>
+    <rect x="16" y="56" width="118" height="7" rx="3" fill="#8A93A0" opacity="0.7"/>
+    <rect x="16" y="70" width="100" height="7" rx="3" fill="#8A93A0" opacity="0.7"/>
+    <rect x="16" y="84" width="72" height="7" rx="3" fill="#8A93A0" opacity="0.7"/>
+  </g>
+  <path d="M884 164 H 914" stroke="#A99BFF" stroke-width="2.5" stroke-dasharray="5 6"/>
+
+  <!-- Scout badge -->
+  <g transform="translate(920 128) scale(0.5)">
+    <rect width="144" height="144" rx="34" fill="#0A0F1F" stroke="#3A3F7A" stroke-width="3"/>
+    <circle cx="72" cy="72" r="40" fill="none" stroke="#3A3F7A" stroke-width="6"/>
+    <circle cx="72" cy="72" r="24" fill="none" stroke="url(#v)" stroke-width="6"/>
+    <path d="M72 56 L77 67 L88 72 L77 77 L72 88 L67 77 L56 72 L67 67 Z" fill="#FFFFFF"/>
+    <path d="M108 30 L110.5 35.5 L116 38 L110.5 40.5 L108 46 L105.5 40.5 L100 38 L105.5 35.5 Z" fill="#A99BFF"/>
+  </g>
+  <text x="956" y="224" fill="#B9B2E8" font-family="Lexend, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="500" text-anchor="middle">Scout · 95/100</text>
+
+  <!-- Fan-out to destinations -->
+  <g stroke-width="2.5" fill="none" stroke-dasharray="5 6">
+    <path d="M996 164 C 1030 164, 1030 104, 1060 104" stroke="#4D8BFF"/>
+    <path d="M996 164 H 1060" stroke="#A99BFF"/>
+    <path d="M996 164 C 1030 164, 1030 224, 1060 224" stroke="#2BB673"/>
+  </g>
+  <g font-family="Lexend, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600">
+    <rect x="1064" y="86" width="148" height="36" rx="10" fill="#4D8BFF" fill-opacity="0.2" stroke="#4D8BFF"/>
+    <text x="1138" y="109" fill="#DCE7FF" text-anchor="middle">Salesforce</text>
+    <rect x="1064" y="146" width="148" height="36" rx="10" fill="#6E5BF0" fill-opacity="0.22" stroke="#A99BFF"/>
+    <text x="1138" y="169" fill="#E4DBFF" text-anchor="middle">Slack</text>
+    <rect x="1064" y="206" width="148" height="36" rx="10" fill="#2BB673" fill-opacity="0.2" stroke="#2BB673"/>
+    <text x="1138" y="229" fill="#D6F5E5" text-anchor="middle">Email</text>
+  </g>
+</svg>
