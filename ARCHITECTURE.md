@@ -174,11 +174,33 @@ The call uses the script owner's OAuth token (`ScriptApp.getOAuthToken()` with t
 | Category | Salesforce | Slack | Email to |
 |---|:---:|:---:|---|
 | Sales | ✅ | ✅ | `SALES_EMAIL_RECIPIENTS` |
-| Partner | — | ✅ | `PARTNER_EMAIL_RECIPIENTS` |
-| everything else | — | — | — |
+| Partner | ✅ | ✅ | `PARTNER_EMAIL_RECIPIENTS` |
+| Genuine Inquiry | ✅ | ✅ | `OTHER_EMAIL_RECIPIENTS` |
+| Support | ✅ | ✅ | `OTHER_EMAIL_RECIPIENTS` |
+| Review Required | ✅ | ✅ | `OTHER_EMAIL_RECIPIENTS` |
+| Career | ✅ | ✅ | `OTHER_EMAIL_RECIPIENTS` |
+| Spam / Duplicate | ❌ | ❌ | ❌ |
+
+The routed categories are listed once in `ROUTED_CATEGORIES` in `Code.gs`. `OTHER_EMAIL_RECIPIENTS` is optional and falls back to `PARTNER_EMAIL_RECIPIENTS`. Every recipient list can hold any number of comma-separated addresses.
+
+```mermaid
+flowchart LR
+    L["Classified lead"]:::step --> Q{"Spam or<br/>Duplicate?"}:::check
+    Q -- "yes" --> X["Not sent<br/>stays in the sheet"]:::stop
+    Q -- "no" --> SF["Salesforce<br/>form handler"]:::sf
+    Q -- "no" --> SL["Slack<br/>channel email"]:::slack
+    Q -- "no" --> EM["HTML email<br/>per-category list"]:::mail
+
+    classDef step fill:#D9EAD3,stroke:#0F9D58,color:#0B3D20
+    classDef check fill:#FAEEDA,stroke:#BA7517,color:#5A3A08
+    classDef stop fill:#FCEBEB,stroke:#A32D2D,color:#A32D2D
+    classDef sf fill:#00A1E0,stroke:#0070A0,color:#fff
+    classDef slack fill:#4A154B,stroke:#2E0B2F,color:#fff
+    classDef mail fill:#0F6E56,stroke:#08483A,color:#fff
+```
 
 - **Salesforce:** a form POST of the 14 lead fields to the Account Engagement (Pardot) form handler in `SALESFORCE_FORM_HANDLER_URL`. Any 2xx or 3xx counts as success.
-- **Slack:** a plain-text email to the channel's email address (`SLACK_EMAIL_ADDRESS`), so no Slack app or token is needed.
+- **Slack:** a plain-text email to the channel's email address (`SLACK_EMAIL_ADDRESS`), so no Slack app or token is needed. The subject and emoji change with the category (🚀 Sales, 🤝 Partner, 💬 Genuine Inquiry, 🛠️ Support, 🔍 Review Required, 💼 Career).
 - **Email:** an HTML email built by `buildLeadEmailHtml` with a plain-text fallback. Every lead value is HTML-escaped. The Scout logo is attached as an inline image (`cid:scoutLogo`); set `SCOUT_AVATAR_URL` to use a hosted PNG instead.
 
 ## Sheet columns
@@ -206,7 +228,7 @@ The call uses the script owner's OAuth token (`ScriptApp.getOAuthToken()` with t
 | W | 22 | Slack sent | routing |
 | X | 23 | Email sent | routing |
 
-**Logs:** timestamp, month, genuine count (Sales + Partner), non-genuine count, status, message.
+**Logs:** timestamp, month, genuine count (every routed category), non-genuine count (Spam + Duplicate), status, message.
 
 Month-tab rows are green (`#D9EAD3`) for Sales and Partner and yellow (`#FFF2CC`) for everything else.
 

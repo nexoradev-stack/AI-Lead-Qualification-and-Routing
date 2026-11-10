@@ -75,33 +75,63 @@ test('a missing Vertex project setting stops with a clear error', () => {
   assert.throws(() => ctx.processOneLeadWithGemini(), /VERTEX_PROJECT_ID/);
 });
 
-test('routing: Sales -> Salesforce + Slack + email, Partner -> Slack + email, others -> nothing', () => {
-  const { ctx, raw, sent, fetched } = setup([
-    leadRow({ 15: 'Sales', 16: 92, 17: 'High', 18: 'Clear buying intent' }),
-    leadRow({ 3: 'p@example.com', 15: 'Partner', 16: 50, 17: 'Low', 18: 'Award nomination' }),
-    leadRow({ 3: 's@example.com', 15: 'Support', 16: 45, 17: 'Medium' })
-  ]);
+test('routing: every category except Spam and Duplicate goes to Salesforce, Slack and email', () => {
+  const routed = ['Sales', 'Partner', 'Genuine Inquiry', 'Support', 'Review Required', 'Career'];
+  const rows = routed.map((cat, i) => leadRow({ 3: `lead${i}@example.com`, 15: cat, 16: 50, 17: 'Low', 18: 'r' }));
+  rows.push(leadRow({ 3: 'spam@example.com', 15: 'Spam', 16: 0, 17: 'Ignore' }));
+  rows.push(leadRow({ 3: 'dup@example.com', 15: 'Duplicate', 16: 0, 17: 'Ignore' }));
+  rows.push(leadRow({ 3: 'new@example.com' }));          // not classified yet
+  const { ctx, raw, sent, fetched } = setup(rows);
   ctx.sendGenuineLeads();
 
-  assert.equal(fetched.length, 1);
-  assert.equal(fetched[0].url, PROPS.SALESFORCE_FORM_HANDLER_URL);
-  assert.equal(fetched[0].opts.payload.email, 'alex.morgan@example.com');
+  assert.equal(fetched.length, routed.length);
+  assert.ok(fetched.every(f => f.url === PROPS.SALESFORCE_FORM_HANDLER_URL));
+  assert.equal(fetched[0].opts.payload.email, 'lead0@example.com');
 
   const slack = sent.filter(m => m.to === PROPS.SLACK_EMAIL_ADDRESS);
   const mail = sent.filter(m => m.htmlBody);
-  assert.equal(slack.length, 2);
-  assert.equal(mail.length, 2);
-  assert.equal(mail[0].to, PROPS.SALES_EMAIL_RECIPIENTS);
-  assert.equal(mail[0].subject, 'New Sales Lead');
-  assert.equal(mail[1].to, PROPS.PARTNER_EMAIL_RECIPIENTS);
-  assert.equal(mail[1].from, undefined);
-
-  assert.deepEqual(raw.rows[1].slice(21, 24), ['TRUE', 'TRUE', 'TRUE']);
-  assert.deepEqual(raw.rows[2].slice(21, 24), ['', 'TRUE', 'TRUE']);
-  assert.deepEqual(raw.rows[3].slice(21, 24), ['', '', '']);
+  assert.equal(slack.length, routed.length);
+  assert.equal(mail.length, routed.length);
+  routed.forEach((cat, i) => {
+    assert.match(slack[i].subject, new RegExp('New General Enquiry ' + cat + ' Lead$'));
+    assert.deepEqual(raw.rows[i + 1].slice(21, 24), ['TRUE', 'TRUE', 'TRUE'], cat);
+  });
+  for (let r = routed.length + 1; r < raw.rows.length; r++) {
+    assert.deepEqual(raw.rows[r].slice(21, 24), ['', '', '']);
+  }
 
   ctx.sendGenuineLeads();                       // second run sends nothing again
-  assert.equal(sent.length, 4);
+  assert.equal(sent.length, routed.length * 2);
+  assert.equal(fetched.length, routed.length);
+});
+
+test('email recipients per category, with OTHER_EMAIL_RECIPIENTS optional', () => {
+  const { ctx, sent, store } = setup([]);
+  const to = cat => { ctx.sendLeadEmail(leadRow({ 15: cat }), cat); return sent[sent.length - 1]; };
+
+  assert.equal(to('Sales').to, PROPS.SALES_EMAIL_RECIPIENTS);
+  assert.equal(to('Sales').subject, 'New Sales Lead');
+  assert.equal(to('Partner').to, PROPS.PARTNER_EMAIL_RECIPIENTS);
+  assert.equal(to('Support').to, PROPS.PARTNER_EMAIL_RECIPIENTS);       // fallback
+  store.OTHER_EMAIL_RECIPIENTS = 'support@example.com, hr@example.com';
+  for (const cat of ['Genuine Inquiry', 'Support', 'Review Required', 'Career']) {
+    assert.equal(to(cat).to, 'support@example.com, hr@example.com', cat);
+  }
+  assert.equal(to('Genuine Inquiry').subject, 'New General Inquiry');
+  assert.equal(to('Review Required').subject, 'New Lead to Review');
+  assert.equal(to('Career').subject, 'New Career / Job Application');
+  assert.equal(sent[0].from, undefined);
+});
+
+test('the log counts routed leads as genuine and Spam / Duplicate as not', () => {
+  const { ctx, active } = setup([
+    leadRow({ 15: 'Sales' }), leadRow({ 15: 'Career' }), leadRow({ 15: 'Support' }),
+    leadRow({ 15: 'Spam' }), leadRow({ 15: 'Duplicate' }), leadRow()
+  ]);
+  ctx.writeLog('ok', 'done');
+  const row = active.sheets.Logs.rows[0];
+  assert.equal(row[2], 3);
+  assert.equal(row[3], 2);
 });
 
 test('MAIL_FROM is used only when set', () => {

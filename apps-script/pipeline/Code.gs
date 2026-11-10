@@ -7,10 +7,10 @@
      2. checkDuplicates()         same email + message -> Duplicate
      3. processOneLeadWithGemini() quick spam rules, then Gemini on Vertex AI:
                                    category, score (0-100), priority, reason
-     4. sendGenuineLeads()        routing:
-                                     Salesforce : Sales only
-                                     Slack      : Sales + Partner
-                                     Email      : Sales + Partner
+     4. sendGenuineLeads()        routing (every category except Spam / Duplicate):
+                                     Sales, Partner, Genuine Inquiry, Support,
+                                     Review Required, Career
+                                     -> Salesforce + Slack + Email
      5. moveLeadToMonthTab()      copy each lead to its month tab ("June 2026" ...)
      then writeLog()              counts + status to the "Logs" tab
 
@@ -427,10 +427,19 @@ JSON Format:
    SEND GENUINE LEADS
    ------------------------------------------------------------
    Routing:
-     - Salesforce : SALES ONLY
-     - Slack      : Sales + Partner
-     - Email      : Sales + Partner
+     Sales, Partner, Genuine Inquiry, Support, Review Required, Career
+       -> Salesforce + Slack + Email
+     Spam, Duplicate
+       -> nowhere (Webflow + Debounce stop most of them before the sheet)
    ============================================================ */
+
+const ROUTED_CATEGORIES = [
+  'Sales', 'Partner', 'Genuine Inquiry', 'Support', 'Review Required', 'Career'
+];
+
+function isRoutedCategory(category) {
+  return ROUTED_CATEGORIES.indexOf(String(category || '').trim()) !== -1;
+}
 
 function sendGenuineLeads() {
 
@@ -447,13 +456,12 @@ function sendGenuineLeads() {
     const slackSent = String(data[i][22] || '').trim();      // W
     const emailSent = String(data[i][23] || '').trim();      // X
 
-    // Slack + Email still handle BOTH Sales and Partner
-    if (category !== 'Sales' && category !== 'Partner') {
+    // Spam, Duplicate and unclassified rows are never sent
+    if (!isRoutedCategory(category)) {
       continue;
     }
 
-    // Salesforce: SALES ONLY
-    if (category === 'Sales' && !salesforceSent) {
+    if (!salesforceSent) {
       sendLeadToSalesforce(data[i]);
       sheet.getRange(i + 1, 22).setValue('TRUE');
       Logger.log('Salesforce sent for row ' + (i + 1));
@@ -472,7 +480,7 @@ function sendGenuineLeads() {
     }
   }
 
-  Logger.log('Sales and Partner lead sending completed.');
+  Logger.log('Lead sending completed.');
 }
 
 
@@ -529,8 +537,15 @@ function sendLeadToSlack(rowData, category) {
 
   const slackEmail = requiredSetting_('SLACK_EMAIL_ADDRESS');
 
-  const isSales = category === 'Sales';
-  const catEmoji = isSales ? '🚀' : '🤝'; // rocket / handshake
+  const slackStyle = {
+    'Sales':           { emoji: '🚀', icon: ':rotating_light:' },
+    'Partner':         { emoji: '🤝', icon: ':handshake:' },
+    'Genuine Inquiry': { emoji: '💬', icon: ':speech_balloon:' },
+    'Support':         { emoji: '🛠️', icon: ':hammer_and_wrench:' },
+    'Review Required': { emoji: '🔍', icon: ':mag:' },
+    'Career':          { emoji: '💼', icon: ':briefcase:' }
+  }[category] || { emoji: '📥', icon: ':inbox_tray:' };
+  const catEmoji = slackStyle.emoji;
 
   const priority = String(rowData[17] || '').trim();
   const prLower = priority.toLowerCase();
@@ -546,9 +561,7 @@ function sendLeadToSlack(rowData, category) {
     '━━━━━━━━━━━━' +
     '━━━━━━━━━━';
 
-  const subject = isSales
-    ? ':rotating_light: New General Enquiry Sales Lead'
-    : ':handshake: New General Enquiry Partner Lead';
+  const subject = slackStyle.icon + ' New General Enquiry ' + category + ' Lead';
 
   const message =
 `${catEmoji} NEW ${category.toUpperCase()} LEAD ${prEmoji} ${priority ? priority.toUpperCase() + ' PRIORITY' : ''}
@@ -589,15 +602,15 @@ Timestamp: ${rowData[0]}
 
 function sendLeadEmail(rowData, category) {
 
-  const recipients = category === 'Sales'
-    ? requiredSetting_('SALES_EMAIL_RECIPIENTS')
-    : requiredSetting_('PARTNER_EMAIL_RECIPIENTS');
+  const recipients = leadEmailRecipients(category);
 
   const subjectMap = {
-    'Sales':   'New Sales Lead',
-    'Partner': 'New Partner Lead',
-    'Support': 'New Support Request',
-    'Career':  'New Career / Job Application'
+    'Sales':           'New Sales Lead',
+    'Partner':         'New Partner Lead',
+    'Genuine Inquiry': 'New General Inquiry',
+    'Support':         'New Support Request',
+    'Review Required': 'New Lead to Review',
+    'Career':          'New Career / Job Application'
   };
   const subject = subjectMap[category] || ('New ' + category + ' Lead');
 
@@ -651,6 +664,17 @@ Scout — ${rowData[18]}`;
 /* ============================================================
    MESSAGING HELPERS
    ============================================================ */
+
+// Who receives the email for each category. Any number of addresses, comma-separated.
+//   Sales   -> SALES_EMAIL_RECIPIENTS
+//   Partner -> PARTNER_EMAIL_RECIPIENTS
+//   Genuine Inquiry, Support, Review Required, Career
+//           -> OTHER_EMAIL_RECIPIENTS (falls back to PARTNER_EMAIL_RECIPIENTS)
+function leadEmailRecipients(category) {
+  if (category === 'Sales') return requiredSetting_('SALES_EMAIL_RECIPIENTS');
+  if (category === 'Partner') return requiredSetting_('PARTNER_EMAIL_RECIPIENTS');
+  return setting_('OTHER_EMAIL_RECIPIENTS', '') || requiredSetting_('PARTNER_EMAIL_RECIPIENTS');
+}
 
 function leadPriorityStyle(priority) {
   const p = String(priority || '').trim().toLowerCase();
@@ -1035,13 +1059,10 @@ function writeLog(status, message) {
   for (let i = 1; i < data.length; i++) {
     const category = String(data[i][15] || '').trim();
 
-    if (category === 'Sales' || category === 'Partner') {
+    // Genuine = routed to Salesforce, Slack and email; non-genuine = Spam / Duplicate
+    if (isRoutedCategory(category)) {
       genuineCount++;
-    } else if (
-      category === 'Spam' || category === 'Career' ||
-      category === 'Support' || category === 'Review Required' ||
-      category === 'Duplicate' || category === 'Genuine Inquiry'
-    ) {
+    } else if (category === 'Spam' || category === 'Duplicate') {
       nonGenuineCount++;
     }
   }

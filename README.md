@@ -14,7 +14,7 @@
   <img alt="Licence" src="https://img.shields.io/badge/licence-all%20rights%20reserved-5F5E5A">
 </p>
 
-Every contact form on the website lands in a Google Sheet. Every few minutes the pipeline removes duplicates and obvious spam, asks **Gemini 2.5 Flash on Vertex AI** what each lead wants, gives it a score from 0 to 100 and a priority, and sends the leads that matter to the right place: **Salesforce** for sales, a **Slack** channel and a designed **HTML email** for sales and partner leads. Each lead is also filed into its month's tab, colour coded, and every run is written to a log.
+Every contact form on the website lands in a Google Sheet. Every few minutes the pipeline removes duplicates and obvious spam, asks **Gemini 2.5 Flash on Vertex AI** what each lead wants, gives it a score from 0 to 100 and a priority, and sends every real lead to **Salesforce**, a **Slack** channel and a designed **HTML email**. Only spam and duplicates are held back. Each lead is also filed into its month's tab, colour coded, and every run is written to a log.
 
 Nobody has to read the inbox to find the five real buyers among fifty submissions.
 
@@ -30,7 +30,7 @@ Nobody has to read the inbox to find the five real buyers among fifty submission
 - [Setup](#setup)
 - [Email validation (Phase 2)](#email-validation-phase-2)
 - [Testing](#testing)
-- [Known gaps](#known-gaps)
+- [Limits to know about](#limits-to-know-about)
 - [Credits](#credits)
 
 ## How it works
@@ -46,9 +46,10 @@ flowchart LR
     C --> M["main() every 5 min<br/>Code.gs"]:::script
     M --> G["Gemini 2.5 Flash<br/>Vertex AI"]:::ai
     G --> R{"Category"}:::check
-    R -- "Sales" --> SF["Salesforce"]:::sf
-    R -- "Sales + Partner" --> SL["Slack channel"]:::slack
-    R -- "Sales + Partner" --> EM["HTML email"]:::mail
+    R -- "Sales · Partner · Inquiry<br/>Support · Review · Career" --> SF["Salesforce"]:::sf
+    R -- "all routed" --> SL["Slack channel"]:::slack
+    R -- "all routed" --> EM["HTML email"]:::mail
+    R -- "Spam · Duplicate" --> N["Not sent"]:::stop
     M --> MT[("Month tabs<br/>June 2026 …")]:::sheet
     M --> L[("Logs tab")]:::sheet
 
@@ -70,10 +71,10 @@ Each run of `main()` does five things, in order, under a script lock so two runs
 | 1 | `importNewLeads` | Copies new rows from the intake **Contact** tab into **Raw Website Leads**, skipping any email + message already there |
 | 2 | `checkDuplicates` | Marks repeat submissions as **Duplicate** (score 0, Ignore) |
 | 3 | `processOneLeadWithGemini` | Quick rules first (test addresses, keyboard mashing, gibberish), then Gemini classifies the rest |
-| 4 | `sendGenuineLeads` | Sends each Sales and Partner lead once to its destinations and ticks it off in the sheet |
+| 4 | `sendGenuineLeads` | Sends every lead except Spam and Duplicate once to Salesforce, Slack and email, and ticks each one off in the sheet |
 | 5 | `moveLeadToMonthTab` | Copies leads from June 2026 on into tabs such as **July 2026**, green for Sales/Partner, yellow for the rest |
 
-Then `writeLog` adds a row to **Logs** with the number of genuine and non-genuine leads and whether the run succeeded.
+Then `writeLog` adds a row to **Logs** with the number of routed leads, the number of spam and duplicates, and whether the run succeeded.
 
 The full design, with the sheet columns and every decision, is in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
@@ -81,14 +82,25 @@ The full design, with the sheet columns and every decision, is in **[ARCHITECTUR
 
 | Category | Score | Priority | Salesforce | Slack | Email |
 |---|---|---|:---:|:---:|:---:|
-| 🟥 **Sales** | 80–100 | High | ✅ | ✅ | ✅ sales team |
-| 🟨 **Genuine Inquiry** | 60–79 | Medium | — | — | — |
-| 🟨 **Support** | 40–59 | Medium | — | — | — |
-| 🟪 **Partner** | 40–59 | Low | — | ✅ | ✅ marketing |
-| ⬜ **Review Required** | 1–39 | Low | — | — | — |
-| ⬛ **Career** / **Spam** / **Duplicate** | 0 | Ignore | — | — | — |
+| 🟥 **Sales** | 80–100 | High | ✅ | ✅ | ✅ |
+| 🟪 **Partner** | 40–59 | Low | ✅ | ✅ | ✅ |
+| 🟨 **Genuine Inquiry** | 60–79 | Medium | ✅ | ✅ | ✅ |
+| 🟨 **Support** | 40–59 | Medium | ✅ | ✅ | ✅ |
+| ⬜ **Review Required** | 1–39 | Low | ✅ | ✅ | ✅ |
+| 🟦 **Career** | 0 | Ignore | ✅ | ✅ | ✅ |
+| ❌ **Spam / Duplicate** | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+> Webflow and Debounce stop spam and duplicate submissions before they reach the sheet. Every other category is sent to Salesforce, Slack and email, and anyone can receive the emails: the recipients are set in Script properties.
 
 Gemini returns the category, score and a one-line reason. The priority is then fixed by the script from the category, so the same kind of lead always gets the same priority.
+
+| Email goes to | Script property |
+|---|---|
+| Sales | `SALES_EMAIL_RECIPIENTS` |
+| Partner | `PARTNER_EMAIL_RECIPIENTS` |
+| Genuine Inquiry, Support, Review Required, Career | `OTHER_EMAIL_RECIPIENTS` (uses the partner list if not set) |
+
+Each list can hold any number of addresses, separated by commas.
 
 ## What the team receives
 
@@ -96,8 +108,8 @@ Both samples below are made-up leads rendered from the real code.
 
 <table>
   <tr>
-    <th width="50%">Email (Sales and Partner)</th>
-    <th width="50%">Slack (Sales and Partner)</th>
+    <th width="50%">Email</th>
+    <th width="50%">Slack</th>
   </tr>
   <tr>
     <td valign="top"><img src="docs/assets/email-sample.png" alt="Sample lead email: High priority, Sales, AI lead score 95 out of 100, contact details for Alex Morgan, the message, the Scout card explaining the score, and source and tracking details"></td>
@@ -154,6 +166,7 @@ There are two Apps Script projects. Copy each folder's files into its own projec
 | `SLACK_EMAIL_ADDRESS` | `website-leads-xxxx@yourteam.example` | ✅ |
 | `SALES_EMAIL_RECIPIENTS` | `sales@example.com, marketing@example.com` | ✅ |
 | `PARTNER_EMAIL_RECIPIENTS` | `marketing@example.com` | ✅ |
+| `OTHER_EMAIL_RECIPIENTS` | `support@example.com, hr@example.com` (Inquiry, Support, Review, Career; default: the partner list) | |
 | `VERTEX_LOCATION` | `us-central1` (default) | |
 | `GEMINI_MODEL` | `gemini-2.5-flash` (default) | |
 | `MAIL_FROM` | `marketing@example.com` (must be a Gmail alias of the account) | |
@@ -187,20 +200,18 @@ If Debounce doesn't answer within 4 seconds, the form goes through anyway, so an
 ## Testing
 
 ```bash
-npm test                    # 24 tests, no Google account needed
+npm test                    # 26 tests, no Google account needed
 bash scripts/check-secrets.sh
 ```
 
-The tests load the real `.gs` files into a Node sandbox with small fakes of `SpreadsheetApp`, `MailApp`, `UrlFetchApp` and the rest. They cover intake routing, de-duplication, the spam rules, the category → priority mapping, the routing matrix, sending each lead only once, HTML escaping in the email, the inline logo, month tabs and the Debounce rules. CI runs them on Node 20 and 22, plus the secrets check.
+The tests load the real `.gs` files into a Node sandbox with small fakes of `SpreadsheetApp`, `MailApp`, `UrlFetchApp` and the rest. They cover intake routing, de-duplication, the spam rules, the category → priority mapping, routing for every category, the email recipients per category, the run log, sending each lead only once, HTML escaping in the email, the inline logo, month tabs and the Debounce rules. CI runs them on Node 20 and 22, plus the secrets check.
 
-## Known gaps
+## Limits to know about
 
-These are tracked as open issues.
-
-- The intake web app accepts posts from anyone who has the URL. A shared secret field would stop forged submissions.
-- The Gemini step stops the whole run if one call fails, and other leads wait for the next run.
-- Gemini is called once per lead with no back-off; a burst of submissions can hit Vertex AI quotas.
-- The pipeline re-reads the whole sheet in every step, which gets slower as the year fills up.
+- The intake web app URL is public by design (Webflow posts to it). Keep the `/exec` URL out of anything shared outside the site.
+- If one Gemini call fails, the run stops and logs ❌; that lead and any after it are picked up on the next run.
+- Gemini is called once per lead. A very large burst of submissions may need a longer trigger interval to stay inside Vertex AI quotas.
+- Every step reads the whole sheet, so a full year of leads makes a run a little slower.
 - Leads from January to May 2026 are never copied to a month tab, by design.
 
 ## Credits

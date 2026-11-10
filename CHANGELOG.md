@@ -2,6 +2,23 @@
 
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — 2026-11-10
+
+### Changed
+
+- **Routing covers every real lead.** Sales, Partner, Genuine Inquiry, Support, Review Required and Career now all go to Salesforce, Slack and email. Only Spam and Duplicate are held back, and Webflow and Debounce stop most of those before they reach the sheet.
+- Salesforce is no longer Sales-only; Slack and email are no longer Sales and Partner only.
+- Slack subject and emoji change with the category.
+- Email subjects added for Genuine Inquiry and Review Required.
+- The run log now counts every routed lead as genuine, and Spam and Duplicate as non-genuine.
+- README and ARCHITECTURE routing tables and diagrams updated.
+
+### Added
+
+- `OTHER_EMAIL_RECIPIENTS` Script property for Genuine Inquiry, Support, Review Required and Career emails (optional; uses the partner list if not set).
+- `ROUTED_CATEGORIES` in `Code.gs`, the single list of categories that are sent on.
+- Tests for routing every category, recipients per category and the run log (26 tests).
+
 ## [1.0.0] — 2026-11-10
 
 First public release of the lead qualification and routing system.
@@ -25,4 +42,5 @@ First public release of the lead qualification and routing system.
 - The AI scoring card is now called **Scout** with a new logo; the old inline logo was cut short and showed as a broken image in some mail clients.
 - The intake app no longer writes whole form submissions to the execution log and no longer returns error details to the caller.
 
+[1.1.0]: https://github.com/nexoradev-stack/AI-Lead-Qualification-and-Routing/releases/tag/v1.1.0
 [1.0.0]: https://github.com/nexoradev-stack/AI-Lead-Qualification-and-Routing/releases/tag/v1.0.0

@@ -20,6 +20,7 @@ const REQUIRED_PROPERTIES = [
 const OPTIONAL_PROPERTIES = {
   VERTEX_LOCATION: 'us-central1',
   GEMINI_MODEL: 'gemini-2.5-flash',
+  OTHER_EMAIL_RECIPIENTS: '(same as PARTNER_EMAIL_RECIPIENTS)',
   MAIL_FROM: '(account running the script)',
   MAIL_FROM_NAME: '66degrees Marketing',
   TRIGGER_MINUTES: '5'
